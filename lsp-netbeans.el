@@ -47,7 +47,7 @@
 
 (require 'lsp-mode)
 
-(defcustom lsp-netbeans-download-url "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ASF/vsextensions/apache-netbeans-java/12.4.301/vspackage"
+(defcustom lsp-netbeans-download-url "https://ci-builds.apache.org/job/Netbeans/job/netbeans-vscode/lastSuccessfulBuild/artifact/java/java.lsp.server/build/*zip*/build.zip"
   "URL to download the Apache Netbeans LSP server from"
   :group 'lsp-netbeans
   :type 'string)
@@ -63,24 +63,38 @@
     ,(format "--start-java-language-server=listen:%d" main-port)))
 
 (defun lsp-netbeans--install-server (client callback error-callback update?)
-  (unless (and (not update?)
-               (f-exists? lsp-netbeans-install-dir))
-    (make-directory lsp-netbeans-install-dir t)
-    (let ((download-path (f-join lsp-netbeans-install-dir "vspackage")))
-      (lsp-download-install
-       (lambda ()
-         (let ((run-script-path (f-join lsp-netbeans-install-dir "run.sh")))
-           (with-temp-file run-script-path
-             (insert "#!/bin/bash
+  (let* ((install-dir lsp-netbeans-install-dir)
+         (backup-dir (concat install-dir "-backup-" (time-stamp-string "%d-%m-%Y"))))
+    (if (or update?
+            (and (f-exists? install-dir)
+                 (not (f-exists? backup-dir))))
+        (progn
+          (if (f-exists? install-dir)
+              (progn
+                (if (f-exists? backup-dir)
+                    (delete-directory backup-dir t))
+                (f-move install-dir backup-dir)))
+          (delete-directory install-dir t)
+          (make-directory install-dir t)
+          (let ((download-path (f-join install-dir "vspackage")))
+            (lsp-download-install
+             (lambda ()
+               (lsp-unzip
+                (car (directory-files-recursively install-dir ".*\\.vsix"))
+                install-dir)
+               (let ((run-script-path (f-join lsp-netbeans-install-dir "run.sh")))
+                 (with-temp-file run-script-path
+                   (insert "#!/bin/bash
                       cd `dirname $0`
                       cd extension
-                      node out/nbcode.js $@ >&2")
-             (executable-make-buffer-file-executable-if-script-p)))
-         (message "Done downloading Netbeans LSP server"))
-       (lambda (err) (error err))
-       :url lsp-netbeans-download-url
-       :store-path download-path
-       :decompress :zip))))
+                      node out/nbcode.js $@ >&2"))
+                 (shell-command (concat "chmod u+x " run-script-path)))
+               (message "Done downloading Netbeans LSP server")
+               (funcall callback))
+             error-callback
+             :url lsp-netbeans-download-url
+             :store-path download-path
+             :decompress :zip))))))
 
 (lsp-register-client
  (make-lsp-client
