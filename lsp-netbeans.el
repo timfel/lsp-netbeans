@@ -66,7 +66,7 @@
     "--start-java-debug-adapter-server=listen:0"
     ,(format "--start-java-language-server=listen:%d" main-port)))
 
-(defun lsp-netbeans--install-server (client callback error-callback update?)
+(defun lsp-netbeans--install-server (_client callback error-callback update?)
   (let* ((install-dir lsp-netbeans-install-dir)
          (backup-dir (concat install-dir "-backup-" (time-stamp-string "%d-%m-%Y"))))
     (if (or update?
