@@ -112,3 +112,8 @@
 
 (provide 'lsp-netbeans)
 
+;;; lsp-netbeans.el ends here
+
+;; Local Variables:
+;; flycheck-disabled-checkers: (emacs-lisp-checkdoc)
+;; End:
