@@ -56,15 +56,26 @@
   :group 'lsp-netbeans
   :type 'string)
 
+(defcustom lsp-netbeans-jdk nil
+  "JDK home to run netbeans"
+  :group 'lsp-netbeans
+  :type 'directory)
+
 (defcustom lsp-netbeans-install-dir (f-join lsp-server-install-dir "asf.apache-netbeans-java")
   "Apache Netbeans language server installation dir"
   :group 'lsp-netbeans
   :type 'string)
 
 (defun lsp-netbeans-server-command (main-port)
-  `(,(f-join lsp-netbeans-install-dir "run.sh")
-    "--start-java-debug-adapter-server=listen:0"
-    ,(format "--start-java-language-server=listen:%d" main-port)))
+  (if (not lsp-netbeans-jdk)
+      `(,(f-join lsp-netbeans-install-dir "run.sh")
+        "--start-java-debug-adapter-server=listen:0"
+        ,(format "--start-java-language-server=listen:%d" main-port))
+    `(,(f-join lsp-netbeans-install-dir "run.sh")
+      "--jdkhome"
+      ,lsp-netbeans-jdk
+      "--start-java-debug-adapter-server=listen:0"
+      ,(format "--start-java-language-server=listen:%d" main-port))))
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
   (let* ((install-dir lsp-netbeans-install-dir)
