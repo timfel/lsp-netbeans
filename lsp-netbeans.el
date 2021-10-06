@@ -114,6 +114,17 @@
   :multi-root t
   :download-server-fn #'lsp-netbeans--install-server))
 
+(defun lsp-netbeans-build-project ()
+  (interactive)
+  (lsp-request-async "workspace/executeCommand"
+                     (list :command "java.build.workspace" :arguments '())
+                     (lambda (result)
+                       (setf (lsp--workspace-status-string (cl-first (lsp-workspaces))) nil)
+                       (force-mode-line-update)
+                       (pcase result
+                         (1 (lsp--info "Successfully build project."))
+                         (2 (lsp--error "Failed to build project."))))))
+
 (provide 'lsp-netbeans)
 
 ;;; lsp-netbeans.el ends here
