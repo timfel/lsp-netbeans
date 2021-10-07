@@ -1,4 +1,4 @@
-;;; dap-netbeans.el --- Apache Netbeans DAP Client         -*- lexical-binding: t; -*-
+;;; dap-netbeans.el --- Apache Netbeans DAP Client
 
 ;; Copyright (C) 2021  Tim Felgentreff
 
@@ -20,28 +20,7 @@
 
 ;;; Commentary:
 
-;; LSP and DAP client for the Apache Netbeans LSP server.
-
-;; Currently missing many features that are in the VSCode extension, including, but not limited to:
-;; - All custom commands, such as
-;;     java.build.workspace
-;;     java.generate.getters
-;;     java.generate.setters
-;;     java.generate.getters.setters
-;;     java.generate.implementMethod
-;;     java.generate.overrideMethod
-;;     java.generate.equals.hashCode
-;;     java.generate.delegateMethod
-;;     java.generate.constructor
-;;     java.generate.logger
-;;     java.generate.toString
-;;     graalvm.pause.script
-;;     java.super.implementation
-;; - Groovy support
-;; - Managing/running/debugging unittest directly
-;; - GraalVM Native Image launch/debug configuration
-;; - Attach to JVM process debug configs
-;; - Launch JVM debug config
+;; DAP client for the Apache Netbeans LSP server.
 
 ;;; Code:
 
@@ -80,3 +59,4 @@
                                    :port nil))
 (provide 'dap-netbeans)
 
+;;; dap-netbeans.el ends here

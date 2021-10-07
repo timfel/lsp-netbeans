@@ -1,42 +1,31 @@
-SHELL=/usr/bin/env bash
+VERSION:=0.0.1
+PACKAGE_ID:=lsp-netbeans
+PACKAGE_NAME:=$(PACKAGE_ID)-$(VERSION)
+PACKAGE_DIR:=/tmp/$(PACKAGE_NAME)
 
-EMACS ?= emacs
-CASK ?= cask
+package: $(PACKAGE_DIR)
+	tar cvf ../$(PACKAGE_NAME).tar --exclude="*#" --exclude="*~" -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 
-INIT="(progn \
-  (require 'package) \
-  (push '(\"melpa\" . \"https://melpa.org/packages/\") package-archives) \
-  (package-initialize) \
-  (package-refresh-contents))"
-
-LINT="(progn \
-		(unless (package-installed-p 'package-lint) \
-		  (package-install 'package-lint)) \
-		(require 'package-lint) \
-		(package-lint-batch-and-exit))"
-
-build:
-	cask install
-
-unix-ci: build unix-compile checkdoc lint
-
-unix-compile:
-	@echo "Compiling..."
-	@$(CASK) $(EMACS) -Q --batch \
-		-L . \
-		--eval '(setq byte-compile-error-on-warn t)' \
-		-f batch-byte-compile \
-		*.el
-
-lint:
-	@echo "package linting..."
-	@$(CASK) $(EMACS) -Q --batch \
-		-L . \
-		--eval $(INIT) \
-		--eval $(LINT) \
-		*.el
+$(PACKAGE_DIR):
+	mkdir $@
+	cp -r ../$(PACKAGE_ID)/* $@
+	sed -i "s/VERSION/$(VERSION)/" $@/$(PACKAGE_ID)-pkg.el
+	sed -i "s/;; Version: VERSION/;; Version: $(VERSION)/" $@/$(PACKAGE_ID).el
 
 clean:
-	rm -rf .cask
+	rm -f ../$(PACKAGE_NAME).tar
+	rm -rf $(PACKAGE_DIR)
 
-.PHONY: build test compile checkdoc lint
+release:
+	@echo Release $(VERSION)
+	sed -i "s/VERSION/$(VERSION)/" $(PACKAGE_ID)-pkg.el
+	sed -i "s/;; Version: VERSION/;; Version: $(VERSION)/" $(PACKAGE_ID).el
+	git add $(PACKAGE_ID)-pkg.el
+	git add $(PACKAGE_ID).el
+	git commit -m "Release $(VERSION)"
+	git tag v$(VERSION)
+	sed -i "s/$(VERSION)/VERSION/" $(PACKAGE_ID)-pkg.el
+	sed -i "s/;; Version: $(VERSION)/;; Version: VERSION/" $(PACKAGE_ID).el
+	git add $(PACKAGE_ID)-pkg.el
+	git add $(PACKAGE_ID).el
+	git commit -m "Next dev cycle"

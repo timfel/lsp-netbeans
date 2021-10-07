@@ -1,6 +1,6 @@
-;;; lsp-netbeans.el --- Apache Netbeans Language Server Client settings         -*- lexical-binding: t; -*-
+;;; lsp-netbeans.el --- Apache Netbeans Language Server Client settings
 
-;; Version: 3.0
+;; Version: VERSION
 
 ;; Author: Tim Felgentreff <timfelgentreff@gmail.com>
 ;; Package-Requires: ((emacs "25.1") (lsp-mode "6.0") (markdown-mode "2.3") (dash "2.18.0") (f "0.20.0") (ht "2.0") (request "0.3.0") (treemacs "2.5") (dap-mode "0.5"))
@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 
-;; LSP and DAP client for the Apache Netbeans LSP server.
+;; LSP client for the Apache Netbeans LSP server.
 
 ;; Currently missing many features that are in the VSCode extension, including, but not limited to:
 ;; - All custom commands, such as
