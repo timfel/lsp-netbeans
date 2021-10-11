@@ -79,7 +79,7 @@
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
   (let* ((install-dir lsp-netbeans-install-dir)
-         (backup-dir (concat install-dir "-backup-" (time-stamp-string "%d-%m-%Y"))))
+         (backup-dir (concat install-dir "-backup-" (format-time-string "%d-%m-%Y"))))
     (if (or update?
             (and (f-exists? install-dir)
                  (not (f-exists? backup-dir))))
