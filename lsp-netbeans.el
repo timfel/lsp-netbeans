@@ -1,4 +1,4 @@
-;;; lsp-netbeans.el --- Apache Netbeans Language Server Client settings
+;;; lsp-netbeans.el --- Apache Netbeans Language Server Client settings  -*- lexical-binding: t; -*-
 
 ;; Version: VERSION
 
@@ -78,25 +78,24 @@
       ,(format "--start-java-language-server=listen:%d" main-port))))
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
-  (let* ((install-dir lsp-netbeans-install-dir)
-         (backup-dir (concat install-dir "-backup-" (format-time-string "%d-%m-%Y"))))
+  (let* ((backup-dir (concat lsp-netbeans-install-dir "-backup-" (format-time-string "%d-%m-%Y"))))
     (if (or update?
-            (and (f-exists? install-dir)
+            (and (f-exists? lsp-netbeans-install-dir)
                  (not (f-exists? backup-dir))))
         (progn
-          (if (f-exists? install-dir)
+          (if (f-exists? lsp-netbeans-install-dir)
               (progn
                 (if (f-exists? backup-dir)
                     (delete-directory backup-dir t))
-                (f-move install-dir backup-dir)))
-          (delete-directory install-dir t)
-          (make-directory install-dir t)
-          (let ((download-path (f-join install-dir "vspackage")))
+                (f-move lsp-netbeans-install-dir backup-dir)))
+          (delete-directory lsp-netbeans-install-dir t)
+          (make-directory lsp-netbeans-install-dir t)
+          (let ((download-path (f-join lsp-netbeans-install-dir "vspackage")))
             (lsp-download-install
              (lambda ()
                (lsp-unzip
-                (car (directory-files-recursively install-dir ".*\\.vsix"))
-                install-dir)
+                (car (directory-files-recursively lsp-netbeans-install-dir ".*\\.vsix"))
+                lsp-netbeans-install-dir)
                (let ((run-script-path (f-join lsp-netbeans-install-dir "run.sh")))
                  (with-temp-file run-script-path
                    (insert "#!/bin/bash
