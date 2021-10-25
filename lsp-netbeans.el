@@ -135,6 +135,10 @@
                          (1 (lsp--info "Successfully build project."))
                          (2 (lsp--error "Failed to build project."))))))
 
+(defun lsp-netbeans-kill-userdir ()
+  (interactive)
+  (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java/userdir/") t))
+
 (provide 'lsp-netbeans)
 
 ;;; lsp-netbeans.el ends here
