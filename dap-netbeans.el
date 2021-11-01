@@ -27,6 +27,8 @@
 (require 'lsp-netbeans)
 (require 'dap-mode)
 
+(setq dap-netbeans--function-breakpoint nil)
+
 (defun dap-netbeans--populate-attach-args (conf)
   (dap--put-if-absent conf :hostName (read-string "Enter host: " "localhost"))
   (dap--put-if-absent conf :port (read-string "Enter port: " "8000"))
@@ -57,6 +59,31 @@
                                    :name "Attach to Port"
                                    :hostName "localhost"
                                    :port nil))
+
+
+(defun dap-netbeans-set-function-breakpoint (function-name)
+  (interactive "S")
+  (setq dap-netbeans--function-breakpoint (if (not (string-empty-p function-name)) function-name)))
+
+(defun dap-netbeans--set-function-breakpoint (debug-session _breakpoints _callback)
+  (if dap-netbeans--function-breakpoint
+      (progn
+        (message "Configuring function breakpoint %s" dap-netbeans--function-breakpoint)
+        (dap--send-message
+         (dap--make-request
+          "setFunctionBreakpoints"
+          (list :breakpoints (list
+                              (list :name dap-netbeans--function-breakpoint))))
+         (dap--resp-handler
+          (lambda (resp)
+            (message "Succ:\n%s" resp))
+          (lambda (err)
+            (message "Err:\n%s" err)))
+         debug-session))))
+
+(advice-add 'dap--configure-breakpoints :after #'dap-netbeans--set-function-breakpoint)
+
+
 (provide 'dap-netbeans)
 
 ;;; dap-netbeans.el ends here
