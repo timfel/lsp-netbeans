@@ -56,9 +56,7 @@
                              (list :id "com.sun.jdi.SocketAttach"
                                    :type "java8+"
                                    :request "attach"
-                                   :name "Attach to Port"
-                                   :hostName "localhost"
-                                   :port nil))
+                                   :name "Attach to Port"))
 
 
 (defun dap-netbeans-set-function-breakpoint (function-name)
