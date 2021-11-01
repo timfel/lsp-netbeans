@@ -7,6 +7,7 @@ package: $(PACKAGE_DIR)
 	tar cvf ../$(PACKAGE_NAME).tar --exclude="*#" --exclude="*~" -C $(PACKAGE_DIR)/.. $(PACKAGE_NAME)
 
 $(PACKAGE_DIR):
+	mkdir -p $@
 	cp -r ../$(PACKAGE_ID)/* $@
 	@echo "(define-package"   > $@/$(PACKAGE_ID)-pkg.el
 	@echo '  "lsp-netbeans"' >> $@/$(PACKAGE_ID)-pkg.el
