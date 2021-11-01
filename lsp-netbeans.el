@@ -65,15 +65,16 @@
   :type 'string)
 
 (defun lsp-netbeans-server-command (main-port)
-  (if (not lsp-netbeans-jdk)
-      `(,(f-join lsp-netbeans-install-dir "run.sh")
-        "--start-java-debug-adapter-server=listen:0"
-        ,(format "--start-java-language-server=listen:%d" main-port))
-    `(,(f-join lsp-netbeans-install-dir "run.sh")
-      "--jdkhome"
-      ,lsp-netbeans-jdk
-      "--start-java-debug-adapter-server=listen:0"
-      ,(format "--start-java-language-server=listen:%d" main-port))))
+  (let ((cmd (list (f-join lsp-netbeans-install-dir "run.sh"))))
+    (if (not (string-empty-p lsp-netbeans-jdk))
+        (progn
+          (add-to-list 'cmd "--jdkhome" t)
+          (add-to-list 'cmd  lsp-netbeans-jdk t)))
+    (if lsp-log-io
+        (add-to-list 'cmd "-J-Dnetbeans.logger.console=true" t))
+    (add-to-list 'cmd "--start-java-debug-adapter-server=listen:0" t)
+    (add-to-list 'cmd (format "--start-java-language-server=listen:%d" main-port) t)
+    cmd))
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
   (let* ((backup-dir (concat lsp-netbeans-install-dir "-backup-" (format-time-string "%d-%m-%Y"))))
@@ -135,7 +136,7 @@
 
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
-  (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java/userdir/") t))
+  (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java") t))
 
 (provide 'lsp-netbeans)
 
