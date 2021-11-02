@@ -70,6 +70,12 @@
       (dap--mark-session-as-terminated (dap--cur-session)))
   formatted-output)
 
+(defun dap-netbeans-kill-debug-session ()
+  (interactive)
+  (if (dap--cur-session)
+      (dap--mark-session-as-terminated (dap--cur-session)))
+  (dap-delete-all-sessions))
+
 (defun dap-netbeans-debug-test ()
   (interactive)
   (if-let* ((tests (lsp-netbeans--load-tests))
