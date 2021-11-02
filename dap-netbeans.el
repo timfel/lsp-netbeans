@@ -36,12 +36,19 @@
   (dap--put-if-absent conf :name (format "%s(%s)" (plist-get conf :host) (plist-get conf :port)))
   conf)
 
+(defun dap-netbeans--populate-launch-args (conf)
+  (dap--put-if-absent conf :mainClass (read-string "Enter mainClass: " "Main"))
+  (dap--put-if-absent conf :methodName (read-string "Enter methodName: " "testA"))
+  (dap--put-if-absent conf :host "localhost")
+  (dap--put-if-absent conf :name (format "%s(%s)" (plist-get conf :host) (plist-get conf :port)))
+  conf)
+
 (defun dap-netbeans--populate-default-args (conf)
   (setq conf (plist-put conf :type "java8+"))
 
   (setq conf (pcase (plist-get conf :request)
                ("attach" (dap-netbeans--populate-attach-args conf))
-               (_ (dap-netbeans--populate-attach-args conf))))
+               ("launch" (dap-netbeans--populate-launch-args conf))))
 
   (plist-put conf :debugServer (with-current-buffer (get-buffer "*netbeans::stderr*")
                                  (goto-char (point-max))
@@ -58,29 +65,32 @@
                                    :request "attach"
                                    :name "Attach to Port"))
 
+(defun dap-netbeans--listen-for-finish (formatted-output)
+  (if (string-equal "User program finished" formatted-output)
+      (dap--mark-session-as-terminated (dap--cur-session)))
+  formatted-output)
 
-(defun dap-netbeans-set-function-breakpoint (function-name)
-  (interactive "S")
-  (setq dap-netbeans--function-breakpoint (if (not (string-empty-p function-name)) function-name)))
-
-(defun dap-netbeans--set-function-breakpoint (debug-session _breakpoints _callback)
-  (if dap-netbeans--function-breakpoint
-      (progn
-        (message "Configuring function breakpoint %s" dap-netbeans--function-breakpoint)
-        (dap--send-message
-         (dap--make-request
-          "setFunctionBreakpoints"
-          (list :breakpoints (list
-                              (list :name dap-netbeans--function-breakpoint))))
-         (dap--resp-handler
-          (lambda (resp)
-            (message "Succ:\n%s" resp))
-          (lambda (err)
-            (message "Err:\n%s" err)))
-         debug-session))))
-
-(advice-add 'dap--configure-breakpoints :after #'dap-netbeans--set-function-breakpoint)
-
+(defun dap-netbeans-debug-test ()
+  (interactive)
+  (if-let* ((tests (lsp-netbeans--load-tests))
+            (id (projectile-completing-read "Select test: " tests))
+            (test (cadr (assoc id tests)))
+            (mainClass (replace-regexp-in-string
+                        "file:/." (lambda (txt) (if (string-match-p "/\\'" txt)
+                                                  txt
+                                                (format "%s//%s" (substring txt 0 -1) (substring txt -1))))
+                        (ht-get test "file")))
+            (methodName (ht-get test "name")))
+      (dap-debug (list :id "com.sun.jdi.Launch"
+                       :type "java8+"
+                       :request "launch"
+                       :name "Java Single Debug"
+                       :testRun :json-false
+                       :noDebug :json-false
+                       :classPaths (list "any")
+                       :mainClass mainClass
+                       :output-filter-function #'dap-netbeans--listen-for-finish
+                       :methodName methodName))))
 
 (provide 'dap-netbeans)
 

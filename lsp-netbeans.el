@@ -141,6 +141,22 @@
                          (1 (lsp--info "Successfully build project."))
                          (2 (lsp--error "Failed to build project."))))))
 
+(defun lsp-netbeans--load-tests ()
+  (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+            (tests (lsp-request
+                    "workspace/executeCommand"
+                    (list :command "java.load.workspace.tests"
+                          :arguments (vector "file:///home/tim/Dev/pythonjavapegparser/")))))
+      (apply #'cl-concatenate 'list
+             (cl-map 'list
+                     (lambda (group)
+                       (cl-map 'list
+                               (lambda (test)
+                                 `(,(ht-get test "id")
+                                   ,test))
+                               (ht-get group "tests")))
+                       tests))))
+
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
   (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java") t))
