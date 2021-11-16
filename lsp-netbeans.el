@@ -157,6 +157,11 @@
                                (ht-get group "tests")))
                        tests))))
 
+(defun lsp-netbeans-organize-imports ()
+  "Organize java imports."
+  (interactive)
+  (lsp-execute-code-action-by-kind "source.organizeImports"))
+
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
   (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java") t))
