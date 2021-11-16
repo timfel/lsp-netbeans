@@ -146,7 +146,7 @@
             (tests (lsp-request
                     "workspace/executeCommand"
                     (list :command "java.load.workspace.tests"
-                          :arguments (vector "file:///home/tim/Dev/pythonjavapegparser/")))))
+                          :arguments (vector (format "file://%s" project-root))))))
       (apply #'cl-concatenate 'list
              (cl-map 'list
                      (lambda (group)
