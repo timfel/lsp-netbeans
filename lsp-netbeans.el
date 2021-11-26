@@ -87,7 +87,8 @@
   (let* ((backup-dir (concat lsp-netbeans-install-dir "-backup-" (format-time-string "%d-%m-%Y"))))
     (if (or update?
             (and (f-exists? lsp-netbeans-install-dir)
-                 (not (f-exists? backup-dir))))
+                 (not (f-exists? backup-dir)))
+            (not (f-exists? lsp-netbeans-install-dir)))
         (progn
           (if (f-exists? lsp-netbeans-install-dir)
               (progn
@@ -96,12 +97,18 @@
                 (f-move lsp-netbeans-install-dir backup-dir)))
           (delete-directory lsp-netbeans-install-dir t)
           (make-directory lsp-netbeans-install-dir t)
-          (let ((download-path (f-join lsp-netbeans-install-dir "vspackage")))
-            (lsp-download-install
+          (let* ((download-path (f-join lsp-netbeans-install-dir "vspackage.zip")))
+            (lsp-async-start-process
              (lambda ()
+               (message "Unzipping %s" download-path)
                (lsp-unzip
-                (car (directory-files-recursively lsp-netbeans-install-dir ".*\\.vsix"))
+                download-path
                 lsp-netbeans-install-dir)
+               (let ((vsix (car (directory-files-recursively lsp-netbeans-install-dir ".*\\.vsix"))))
+                 (message "Unzipping %s" vsix)
+                 (lsp-unzip
+                  vsix
+                  lsp-netbeans-install-dir))
                (let ((run-script-path (f-join lsp-netbeans-install-dir "run.sh")))
                  (with-temp-file run-script-path
                    (insert "#!/bin/bash
@@ -112,9 +119,7 @@
                (message "Done downloading Netbeans LSP server")
                (funcall callback))
              error-callback
-             :url lsp-netbeans-download-url
-             :store-path download-path
-             :decompress :zip))))))
+             "sh" "-c" (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
 
 (lsp-register-client
  (make-lsp-client
