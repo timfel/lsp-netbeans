@@ -121,6 +121,31 @@
              error-callback
              "sh" "-c" (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
 
+(lsp-interface (ShowQuickPickParams (:placeHolder :canPickMany :items) nil)
+               (QuickPickItem (:label :picked :userData) nil))
+
+(defun lsp-netbeans--show-quick-pick (_workspace params)
+  (let* ((selectfunc (if (ht-get params "canPickMany") #'completing-read-multiple #'completing-read))
+         (msg (ht-get params "placeHolder"))
+         (items (cl-map 'list
+                        (lambda (item) (ht-get item "label"))
+                        (ht-get params "items")))
+         (result (funcall-interactively selectfunc (format "%s " msg) items))
+         (choices (if (listp result) result (list result))))
+    (vconcat (seq-filter #'identity (cl-map 'list
+                                            (lambda (item)
+                                              (if (member (ht-get item "label") choices)
+                                                  (progn
+                                                    (ht-set! item "picked" t)
+                                                    item)
+                                                nil))
+                                            (ht-get params "items"))))))
+
+(defun lsp-netbeans--show-input-box (_workspace params)
+  (let* ((msg (format "%s: " (ht-get params "prompt")))
+         (val (or (ht-get params "value") "")))
+    (read-string msg val)))
+
 (lsp-register-client
  (make-lsp-client
   :new-connection (lsp-tcp-connection 'lsp-netbeans-server-command)
@@ -133,7 +158,20 @@
                                  :wantsGroovySupport (lsp-json-bool nil)))
   :priority 10
   :multi-root t
+  :request-handlers (ht
+                     ("window/showQuickPick" #'lsp-netbeans--show-quick-pick)
+                     ("window/showInputBox" #'lsp-netbeans--show-input-box))
   :download-server-fn #'lsp-netbeans--install-server))
+
+(defun lsp-netbeans-source-action ()
+  "Source generators."
+  (interactive)
+  (lsp-execute-code-action-by-kind "source"))
+
+(defun lsp-netbeans-refactor-action ()
+  "Refactorings."
+  (interactive)
+  (lsp-execute-code-action-by-kind "refactor"))
 
 (defun lsp-netbeans-build-project ()
   (interactive)
