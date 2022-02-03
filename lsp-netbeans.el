@@ -125,13 +125,18 @@
                (QuickPickItem (:label :picked :userData) nil))
 
 (defun lsp-netbeans--show-quick-pick (_workspace params)
-  (let* ((selectfunc (if (ht-get params "canPickMany") #'completing-read-multiple #'completing-read))
+  (let* ((canPickAll (ht-get params "canPickMany"))
+         (selectfunc (if canPickAll #'completing-read-multiple #'completing-read))
          (msg (ht-get params "placeHolder"))
          (items (cl-map 'list
                         (lambda (item) (ht-get item "label"))
                         (ht-get params "items")))
-         (result (funcall-interactively selectfunc (format "%s " msg) items))
-         (choices (if (listp result) result (list result))))
+         (result (funcall-interactively selectfunc (format "%s%s " msg (if canPickAll " (* for all)" "")) items))
+         (choices (if (listp result)
+                      (if (equal result '("*"))
+                          items
+                        result)
+                    (list result))))
     (vconcat (seq-filter #'identity (cl-map 'list
                                             (lambda (item)
                                               (if (member (ht-get item "label") choices)
@@ -184,6 +189,24 @@
                          (1 (lsp--info "Successfully build project."))
                          (2 (lsp--error "Failed to build project."))))))
 
+(defun lsp-netbeans-get-project-packages ()
+  (interactive)
+  (message "%s"
+           (lsp-request "workspace/executeCommand"
+                        (list :command "java.get.project.packages"
+                              :arguments (vector (format "file://%s" buffer-file-name))))))
+
+(defun lsp-netbeans-resolve-project-problems ()
+  (interactive)
+  (message "%s"
+           (lsp-request "workspace/executeCommand"
+                        (list :command "java.project.resolveProjectProblems"
+                              :arguments (vector (format "file://%s" buffer-file-name))))))
+
+(defun lsp-netbeans-clear-caches ()
+  (interactive)
+  (lsp-request "workspace/executeCommand" (list :command "java.clear.project.caches")))
+
 (defun lsp-netbeans--load-tests ()
   (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
             (tests (lsp-request
@@ -198,7 +221,46 @@
                                  `(,(ht-get test "id")
                                    ,test))
                                (ht-get group "tests")))
-                       tests))))
+                     tests))))
+
+(defun lsp-netbeans--xref-from-file-references (file-references)
+  "Create an xref buffer from FILE-REFERENCES ((file line column display-text) ...)."
+  ;; Needed for xref API.
+  (require 'xref)
+  (let ((xrefs (list)))
+    (dolist (item file-references)
+      (pcase-let ((`(,file ,line ,col ,display-text) item))
+        (push (xref-make display-text (xref-make-file-location file line col)) xrefs))
+      (xref--show-xrefs (lambda () xrefs) nil))))
+
+(defun lsp-netbeans-super-impl ()
+  (interactive)
+  (if-let* ((impls (lsp-request
+                    "workspace/executeCommand"
+                    (list :command "java.super.implementation"
+                          :arguments (vector
+                                      (format "file://%s" buffer-file-name)
+                                      (list :line (line-number-at-pos)
+                                            :character (- (point) (line-beginning-position)))))))
+            ;; I have this weird bug that accessing the hashtable returned above segvs...
+            (newhash (eval (car (read (format "%s" impls)))))
+            (uri (format "%s" (ht-get newhash 'uri)))
+            (filename (replace-regexp-in-string "file:" "" uri))
+            (rangeHash (ht-get newhash 'range))
+            (startHash (ht-get rangeHash 'start))
+            (endHash (ht-get rangeHash 'start))
+            (line (ht-get startHash 'line))
+            (character (ht-get startHash 'character))
+            (text (with-temp-buffer
+                    (insert-file-contents filename)
+                    (goto-char (point-min))
+                    (forward-line line)
+                    (delete-region (point-min) (point))
+                    (forward-list)
+                    (forward-list)
+                    (delete-region (point) (point-max))
+                    (buffer-string))))
+      (lsp-netbeans--xref-from-file-references `(,`(,filename ,line ,character ,text)))))
 
 (defun lsp-netbeans-organize-imports ()
   "Organize java imports."
