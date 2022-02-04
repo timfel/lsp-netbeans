@@ -90,17 +90,23 @@
       (dap--mark-session-as-terminated (dap--cur-session)))
   (dap-delete-all-sessions))
 
-(defun dap-netbeans-debug-test ()
+(lsp-defun dap-netbeans-debug-test ()
   (interactive)
-  (if-let* ((tests (lsp-netbeans--load-tests))
-            (id (projectile-completing-read "Select test: " tests))
-            (test (cadr (assoc id tests)))
-            (mainClass (replace-regexp-in-string
+  (-if-let* ((rawTests (lsp-netbeans--load-tests))
+             (tests (apply #'cl-concatenate 'list
+                           (cl-map 'list (-lambda ((item &as &netbeans:Tests :tests)) tests) rawTests)))
+             (testIds (cl-map 'list (-lambda ((item &as &netbeans:Test :id)) id) tests))
+             (chosenId (projectile-completing-read "Select test: " testIds))
+             (selectedTest (cl-find-if
+                            (-lambda ((item &as &netbeans:Test :id :file :name)) (equal chosenId id))
+                            tests))
+             ((&netbeans:Test :id :file :name) selectedTest)
+             (mainClass (replace-regexp-in-string
                         "file:/." (lambda (txt) (if (string-match-p "/\\'" txt)
                                                   txt
                                                 (format "%s//%s" (substring txt 0 -1) (substring txt -1))))
-                        (ht-get test "file")))
-            (methodName (ht-get test "name")))
+                        file))
+             (methodName name))
       (dap-debug (list :id "com.sun.jdi.Launch"
                        :type "java8+"
                        :request "launch"

@@ -121,52 +121,63 @@
              error-callback
              "sh" "-c" (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
 
-(lsp-interface (ShowQuickPickParams (:placeHolder :canPickMany :items) nil)
-               (QuickPickItem (:label :picked :userData) nil))
+(lsp-interface (netbeans:ShowQuickPickParams (:placeHolder :canPickMany :items) nil)
+               (netbeans:QuickPickItem (:label :picked :userData) nil)
+               (netbeans:ShowInputBoxParams (:prompt) (:value))
+               (netbeans:Tests (:file :name :range :tests) nil)
+               (netbeans:Test (:id :file :name :range) nil))
 
-(defun lsp-netbeans--show-quick-pick (_workspace params)
-  (let* ((canPickAll (ht-get params "canPickMany"))
-         (selectfunc (if canPickAll #'completing-read-multiple #'completing-read))
-         (msg (ht-get params "placeHolder"))
-         (items (cl-map 'list
-                        (lambda (item) (ht-get item "label"))
-                        (ht-get params "items")))
-         (result (funcall-interactively selectfunc (format "%s%s " msg (if canPickAll " (* for all)" "")) items))
-         (choices (if (listp result)
-                      (if (equal result '("*"))
-                          items
-                        result)
-                    (list result))))
+(lsp-defun lsp-netbeans--show-quick-pick (_workspace (&netbeans:ShowQuickPickParams :place-holder :can-pick-many :items))
+  (-let* ((selectfunc (if can-pick-many #'completing-read-multiple #'completing-read))
+          (itemLabels (cl-map 'list
+                              (lambda ((item &as &netbeans:QuickPickItem :label)) label)
+                              items))
+          (result (funcall-interactively
+                   selectfunc
+                   (format "%s%s " place-holder (if can-pick-many " (* for all)" "")) itemLabels))
+          (choices (if (listp result)
+                       (if (equal result '("*"))
+                           itemLabels
+                         result)
+                     (list result))))
     (vconcat (seq-filter #'identity (cl-map 'list
-                                            (lambda (item)
-                                              (if (member (ht-get item "label") choices)
-                                                  (progn
-                                                    (ht-set! item "picked" t)
-                                                    item)
+                                            (-lambda ((item &as &netbeans:QuickPickItem :label :picked :user-data))
+                                              (if (member label choices)
+                                                  (lsp-make-netbeans-quick-pick-item :label label :picked t :user-data user-data)
                                                 nil))
-                                            (ht-get params "items"))))))
+                                            items)))))
 
-(defun lsp-netbeans--show-input-box (_workspace params)
-  (let* ((msg (format "%s: " (ht-get params "prompt")))
-         (val (or (ht-get params "value") "")))
-    (read-string msg val)))
+(lsp-defun lsp-netbeans--show-input-box (_workspace (&netbeans:ShowInputBoxParams :prompt :value?))
+  (read-string (format "%s: " prompt) (or value "")))
 
-(lsp-register-client
- (make-lsp-client
-  :new-connection (lsp-tcp-connection 'lsp-netbeans-server-command)
-  :activation-fn (lsp-activate-on "java")
-  :server-id 'netbeans
-  :initialization-options (list :nbcodeCapabilities
-                                (list
-                                 :testResultsSupport (lsp-json-bool nil)
-                                 :statusBarMessageSupport (lsp-json-bool nil)
-                                 :wantsGroovySupport (lsp-json-bool nil)))
-  :priority 10
-  :multi-root t
-  :request-handlers (ht
-                     ("window/showQuickPick" #'lsp-netbeans--show-quick-pick)
-                     ("window/showInputBox" #'lsp-netbeans--show-input-box))
-  :download-server-fn #'lsp-netbeans--install-server))
+(defun lsp-netbeans--load-tests ()
+  (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
+            (tests (lsp-request
+                    "workspace/executeCommand"
+                    (list :command "java.load.workspace.tests"
+                          :arguments (vector (format "file://%s" project-root))))))
+      tests))
+
+(lsp-defun lsp-netbeans--xref-from-file-reference (file display-text (&Range :start (start &as &Position
+                                                                                           :character col
+                                                                                           :line line)))
+  (xref-make display-text (xref-make-file-location (lsp--uri-to-path file) line col)))
+
+(lsp-defun lsp-netbeans-project-tests ()
+  (interactive)
+  (-if-let* ((rawTests (lsp-netbeans--load-tests))
+             (xrefs (apply #'cl-concatenate 'list
+                           (cl-map
+                            'list
+                            (-lambda ((item &as &netbeans:Tests :name :file :range :tests))
+                              (cl-concatenate 'list
+                                              `(,(lsp-netbeans--xref-from-file-reference file name range))
+                                              (cl-map 'list
+                                                      (-lambda ((item &as &netbeans:Test :id :file :range))
+                                                        (lsp-netbeans--xref-from-file-reference file id range))
+                                                      tests)))
+                                rawTests))))
+      (lsp-show-xrefs xrefs nil nil)))
 
 (defun lsp-netbeans-source-action ()
   "Source generators."
@@ -191,48 +202,25 @@
 
 (defun lsp-netbeans-get-project-packages ()
   (interactive)
-  (message "%s"
-           (lsp-request "workspace/executeCommand"
-                        (list :command "java.get.project.packages"
-                              :arguments (vector (format "file://%s" buffer-file-name))))))
+  (with-output-to-temp-buffer "*netbeans-packages*"
+    (print (mapconcat #'identity
+                      (cl-sort
+                       (lsp-request "workspace/executeCommand"
+                                    (list :command "java.get.project.packages"
+                                          :arguments (vector (format "file://%s" buffer-file-name))))
+                       'string-lessp :key 'downcase)
+                      "\n"))))
 
 (defun lsp-netbeans-resolve-project-problems ()
   (interactive)
-  (message "%s"
-           (lsp-request "workspace/executeCommand"
+  (with-output-to-temp-buffer "*netbeans-packages*"
+    (print (lsp-request "workspace/executeCommand"
                         (list :command "java.project.resolveProjectProblems"
-                              :arguments (vector (format "file://%s" buffer-file-name))))))
+                              :arguments (vector (format "file://%s" buffer-file-name)))))))
 
 (defun lsp-netbeans-clear-caches ()
   (interactive)
   (lsp-request "workspace/executeCommand" (list :command "java.clear.project.caches")))
-
-(defun lsp-netbeans--load-tests ()
-  (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
-            (tests (lsp-request
-                    "workspace/executeCommand"
-                    (list :command "java.load.workspace.tests"
-                          :arguments (vector (format "file://%s" project-root))))))
-      (apply #'cl-concatenate 'list
-             (cl-map 'list
-                     (lambda (group)
-                       (cl-map 'list
-                               (lambda (test)
-                                 `(,(ht-get test "id")
-                                   ,test))
-                               (ht-get group "tests")))
-                     tests))))
-
-(defun lsp-netbeans--xref-from-file-references (file-references)
-  "Create an xref buffer from FILE-REFERENCES ((file line column display-text) ...)."
-  ;; Needed for xref API.
-  (require 'xref)
-  (let ((xrefs (list)))
-    (dolist (item file-references)
-      (pcase-let ((`(,file ,line ,col ,display-text) item))
-        (push (xref-make display-text (xref-make-file-location file line col)) xrefs))
-      (xref--show-xrefs (lambda () xrefs) nil))))
-
 
 (defun lsp-netbeans-super-impl ()
   (interactive)
@@ -252,6 +240,23 @@
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
   (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java") t))
+
+(lsp-register-client
+ (make-lsp-client
+  :new-connection (lsp-tcp-connection 'lsp-netbeans-server-command)
+  :activation-fn (lsp-activate-on "java")
+  :server-id 'netbeans
+  :initialization-options (list :nbcodeCapabilities
+                                (list
+                                 :testResultsSupport (lsp-json-bool nil)
+                                 :statusBarMessageSupport (lsp-json-bool nil)
+                                 :wantsGroovySupport (lsp-json-bool nil)))
+  :priority 10
+  :multi-root t
+  :request-handlers (ht
+                     ("window/showQuickPick" #'lsp-netbeans--show-quick-pick)
+                     ("window/showInputBox" #'lsp-netbeans--show-input-box))
+  :download-server-fn #'lsp-netbeans--install-server))
 
 (provide 'lsp-netbeans)
 
