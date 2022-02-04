@@ -233,34 +233,16 @@
         (push (xref-make display-text (xref-make-file-location file line col)) xrefs))
       (xref--show-xrefs (lambda () xrefs) nil))))
 
+
 (defun lsp-netbeans-super-impl ()
   (interactive)
-  (if-let* ((impls (lsp-request
-                    "workspace/executeCommand"
-                    (list :command "java.super.implementation"
-                          :arguments (vector
-                                      (format "file://%s" buffer-file-name)
-                                      (list :line (line-number-at-pos)
-                                            :character (- (point) (line-beginning-position)))))))
-            ;; I have this weird bug that accessing the hashtable returned above segvs...
-            (newhash (eval (car (read (format "%s" impls)))))
-            (uri (format "%s" (ht-get newhash 'uri)))
-            (filename (replace-regexp-in-string "file:" "" uri))
-            (rangeHash (ht-get newhash 'range))
-            (startHash (ht-get rangeHash 'start))
-            (endHash (ht-get rangeHash 'start))
-            (line (ht-get startHash 'line))
-            (character (ht-get startHash 'character))
-            (text (with-temp-buffer
-                    (insert-file-contents filename)
-                    (goto-char (point-min))
-                    (forward-line line)
-                    (delete-region (point-min) (point))
-                    (forward-list)
-                    (forward-list)
-                    (delete-region (point) (point-max))
-                    (buffer-string))))
-      (lsp-netbeans--xref-from-file-references `(,`(,filename ,line ,character ,text)))))
+  (lsp-find-locations
+   "workspace/executeCommand"
+   (list
+    :command "java.super.implementation"
+    :arguments (vector
+                (format "file://%s" buffer-file-name)
+                (lsp--cur-position)))))
 
 (defun lsp-netbeans-organize-imports ()
   "Organize java imports."
