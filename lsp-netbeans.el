@@ -130,7 +130,7 @@
 (lsp-defun lsp-netbeans--show-quick-pick (_workspace (&netbeans:ShowQuickPickParams :place-holder :can-pick-many :items))
   (-let* ((selectfunc (if can-pick-many #'completing-read-multiple #'completing-read))
           (itemLabels (cl-map 'list
-                              (lambda ((item &as &netbeans:QuickPickItem :label)) label)
+                              (-lambda ((item &as &netbeans:QuickPickItem :label)) label)
                               items))
           (result (funcall-interactively
                    selectfunc
