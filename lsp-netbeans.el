@@ -127,28 +127,68 @@
                (netbeans:Tests (:file :name :range :tests) nil)
                (netbeans:Test (:id :file :name :range) nil))
 
+(defun lsp-netbeans--pick-multiple (title items)
+  (require 'widget)
+  (let ((finished nil)
+        (name "*Pick Items*")
+        (selection '()))
+    (with-current-buffer-window name name (lambda (window _result) (select-window window t))
+      (widget-insert title)
+      (widget-insert "\n\n")
+      (dolist (item items)
+        (widget-create 'checkbox
+                       :notify (lambda (widget &rest _ignore)
+                                 (if (widget-value widget)
+                                     (push item selection)
+                                   (delete item selection)))
+                       nil)
+        (widget-insert (format " %s\n" item)))
+      (widget-create 'push-button
+                     :notify (lambda (&rest _ignore) (setq finished t))
+                     "Accept Selection")
+      (widget-insert " ")
+      (widget-create 'push-button
+                     :notify (lambda (&rest _ignore)
+                               (setq selection (mapcar #'identity items))
+                               (setq finished t))
+                     "Accept All")
+      (use-local-map widget-keymap))
+    (while (not finished)
+      (let* ((seq (read-key-sequence-vector nil))
+             (binding (local-key-binding seq)))
+        (if (equal seq [13])
+            (widget-button-press)
+          (if binding
+              (call-interactively binding)
+            (let ((gbinding (global-key-binding seq)))
+              (if gbinding
+                  (call-interactively gbinding)))))))
+    (kill-buffer name)
+    (message "%s" selection)
+    selection))
+
 (lsp-defun lsp-netbeans--show-quick-pick (_workspace (&netbeans:ShowQuickPickParams :place-holder :can-pick-many :items))
-  (-let* ((selectfunc (if can-pick-many #'completing-read-multiple #'completing-read))
-          (itemLabels (cl-map 'list
-                              (-lambda ((item &as &netbeans:QuickPickItem :label)) label)
-                              items))
-          (result (funcall-interactively
-                   selectfunc
-                   (format "%s%s " place-holder (if can-pick-many " (* for all)" "")) itemLabels))
-          (choices (if (listp result)
-                       (if (equal result '("*"))
-                           itemLabels
-                         result)
-                     (list result))))
-    (vconcat (seq-filter #'identity (cl-map 'list
-                                            (-lambda ((item &as &netbeans:QuickPickItem :label :picked :user-data))
-                                              (if (member label choices)
-                                                  (lsp-make-netbeans-quick-pick-item :label label :picked t :user-data user-data)
-                                                nil))
-                                            items)))))
+  (if-let* ((selectfunc (if can-pick-many #'completing-read-multiple #'completing-read))
+            (itemLabels (cl-map 'list
+                                (-lambda ((item &as &netbeans:QuickPickItem :label)) (format "%s" label))
+                                items))
+            (result (funcall-interactively
+                     selectfunc
+                     (format "%s%s " place-holder (if can-pick-many " (* for all)" "")) itemLabels))
+            (choices (if (listp result)
+                         (if (equal result '("*"))
+                             itemLabels
+                           result)
+                       (list result))))
+      (vconcat (seq-filter #'identity (cl-map 'list
+                                              (-lambda ((item &as &netbeans:QuickPickItem :label :picked :user-data))
+                                                (if (member label choices)
+                                                    (lsp-make-netbeans-quick-pick-item :label label :picked t :user-data user-data)
+                                                  nil))
+                                              items)))))
 
 (lsp-defun lsp-netbeans--show-input-box (_workspace (&netbeans:ShowInputBoxParams :prompt :value?))
-  (read-string (format "%s: " prompt) (or value "")))
+  (read-string (format "%s: " prompt) (or value? "")))
 
 (defun lsp-netbeans--load-tests ()
   (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
@@ -166,17 +206,15 @@
 (lsp-defun lsp-netbeans-project-tests ()
   (interactive)
   (-if-let* ((rawTests (lsp-netbeans--load-tests))
-             (xrefs (apply #'cl-concatenate 'list
-                           (cl-map
-                            'list
-                            (-lambda ((item &as &netbeans:Tests :name :file :range :tests))
-                              (cl-concatenate 'list
-                                              `(,(lsp-netbeans--xref-from-file-reference file name range))
-                                              (cl-map 'list
-                                                      (-lambda ((item &as &netbeans:Test :id :file :range))
-                                                        (lsp-netbeans--xref-from-file-reference file id range))
-                                                      tests)))
-                                rawTests))))
+             (xrefs (flatten-tree (cl-map
+                                   'list
+                                   (-lambda ((item &as &netbeans:Tests :name :file :range :tests))
+                                     `(,(lsp-netbeans--xref-from-file-reference file name range)
+                                       ,(cl-map 'list
+                                                (-lambda ((item &as &netbeans:Test :id :file :range))
+                                                  (lsp-netbeans--xref-from-file-reference file id range))
+                                                tests)))
+                                   rawTests))))
       (lsp-show-xrefs xrefs nil nil)))
 
 (defun lsp-netbeans-source-action ()
