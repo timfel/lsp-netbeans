@@ -64,6 +64,11 @@
   :group 'lsp-netbeans
   :type 'string)
 
+(defcustom lsp-netbeans-user-dir (f-join lsp-server-install-dir "asf.apache-netbeans-java.userdir")
+  "Apache Netbeans language server userdir"
+  :group 'lsp-netbeans
+  :type 'string)
+
 (defcustom-lsp lsp-netbeans-javadoc-load-timeout 10
   "Load timeout for docs."
   :type 'number
@@ -81,6 +86,8 @@
         (add-to-list 'cmd "-J-Dnetbeans.logger.console=true" t))
     (add-to-list 'cmd "--start-java-debug-adapter-server=listen:0" t)
     (add-to-list 'cmd (format "--start-java-language-server=listen:%d" main-port) t)
+    (add-to-list 'cmd lsp-netbeans-user-dir)
+    (add-to-list 'cmd "--userdir")
     cmd))
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
