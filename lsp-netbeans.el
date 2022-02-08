@@ -86,8 +86,8 @@
         (add-to-list 'cmd "-J-Dnetbeans.logger.console=true" t))
     (add-to-list 'cmd "--start-java-debug-adapter-server=listen:0" t)
     (add-to-list 'cmd (format "--start-java-language-server=listen:%d" main-port) t)
-    (add-to-list 'cmd lsp-netbeans-user-dir)
-    (add-to-list 'cmd "--userdir")
+    (add-to-list 'cmd "--userdir" t)
+    (add-to-list 'cmd lsp-netbeans-user-dir t)
     cmd))
 
 (defun lsp-netbeans--install-server (_client callback error-callback update?)
