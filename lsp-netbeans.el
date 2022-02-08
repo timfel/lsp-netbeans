@@ -284,7 +284,7 @@
 
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
-  (f-delete (expand-file-name "~/.config/Code/User/globalStorage/asf.apache-netbeans-java") t))
+  (f-delete lsp-netbeans-user-dir t))
 
 (lsp-register-client
  (make-lsp-client
