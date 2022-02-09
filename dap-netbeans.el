@@ -28,19 +28,26 @@
 (require 'dap-mode)
 
 (setq dap-netbeans--function-breakpoint nil)
+(setq dap-netbeans--host-history '("localhost"))
+(setq dap-netbeans--port-history '("8000"))
 
 (defun dap-netbeans--populate-attach-args (conf)
-  (pcase (plist-get conf :name)
-    ("Attach to Port" (progn
-                        (dap--put-if-absent conf :hostName (read-string "Enter host: " "localhost"))
-                        (dap--put-if-absent conf :port (read-string "Enter port: " "8000"))))
-    ("Attach to PID" (progn
-                       (dap--put-if-absent conf
-                                           :processId
-                                           (lsp-request "workspace/executeCommand"
-                                                        (list :command "java.attachDebugger.pickProcess"))))))
+  (if-let* ((dap-netbeans--attach-history (list "Process" "Socket"))
+            (type (completing-read "Attach to Socket/Process? " dap-netbeans--attach-history nil t nil 'dap-netbeans--attach-history)))
+      (pcase type
+        ("Socket" (progn
+                    (dap--put-if-absent conf :id "com.sun.jdi.SocketAttach")
+                    (dap--put-if-absent conf :hostName (read-string "Enter host: " (car dap-netbeans--host-history) 'dap-netbeans--host-history))
+                    (dap--put-if-absent conf :port (read-string "Enter port: " (car dap-netbeans--port-history) 'dap-netbeans--port-history))
+                    (dap--put-if-absent conf :name (format "Attach to %s:%s" (plist-get conf :hostName) (plist-get conf :port)))))
+        ("Process" (progn
+                     (dap--put-if-absent conf :id "com.sun.jdi.ProcessAttach")
+                     (dap--put-if-absent conf :name "Attach to PID")
+                     (dap--put-if-absent conf
+                                         :processId
+                                         (lsp-request "workspace/executeCommand"
+                                                      (list :command "java.attachDebugger.pickProcess")))))))
   (dap--put-if-absent conf :host "localhost")
-  (dap--put-if-absent conf :name (format "%s(%s)" (plist-get conf :host) (plist-get conf :port)))
   conf)
 
 (defun dap-netbeans--populate-launch-args (conf)
@@ -67,17 +74,9 @@
 
 (dap-register-debug-provider "java8+" #'dap-netbeans--populate-default-args)
 
-(dap-register-debug-template "Java8+ Socket Attach"
-                             (list :id "com.sun.jdi.SocketAttach"
-                                   :type "java8+"
-                                   :request "attach"
-                                   :name "Attach to Port"))
-
-(dap-register-debug-template "Java8+ Process Attach"
-                             (list :id "com.sun.jdi.ProcessAttach"
-                                   :type "java8+"
-                                   :request "attach"
-                                   :name "Attach to PID"))
+(dap-register-debug-template "Java8+"
+                             (list :type "java8+"
+                                   :request "attach"))
 
 (defun dap-netbeans--listen-for-finish (formatted-output)
   (if (string-equal "User program finished" formatted-output)
