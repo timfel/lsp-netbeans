@@ -312,16 +312,17 @@
              (wsuserdir (f-join lsp-server-install-dir
                                 (format "asf.apache-netbeans-java.userdir.%s" wsname))))
         (if (not (equal lsp-netbeans-user-dir wsuserdir))
-            ;; shutdown servers
-            (->> (lsp-session)
-                 (lsp-session-folder->servers)
-                 (hash-table-values)
-                 (-flatten)
-                 (-uniq)
-                 (-map #'lsp-workspace-shutdown))
-          (if (equal "Default" wsname)
-              (setq lsp-netbeans-user-dir nil)
-            (setq lsp-netbeans-user-dir wsuserdir))))))
+            (progn
+              ;; shutdown servers
+              (->> (lsp-session)
+                   (lsp-session-folder->servers)
+                   (hash-table-values)
+                   (-flatten)
+                   (-uniq)
+                   (-map #'lsp-workspace-shutdown))
+              (if (equal "Default" wsname)
+                  (setq lsp-netbeans-user-dir nil)
+                (setq lsp-netbeans-user-dir wsuserdir)))))))
 
 (if (bound-and-true-p treemacs-switch-workspace-hook)
     (progn
