@@ -308,27 +308,29 @@
 
 (defun lsp-netbeans--treemacs-sync ()
   (if (bound-and-true-p lsp-treemacs-sync-mode)
-      (let* ((wsname (treemacs-workspace->name (treemacs-current-workspace)))
-             (wsuserdir (f-join lsp-server-install-dir
-                                (format "asf.apache-netbeans-java.userdir.%s" wsname))))
-        (if (not (equal lsp-netbeans-user-dir wsuserdir))
-            (progn
-              ;; shutdown servers
-              (->> (lsp-session)
-                   (lsp-session-folder->servers)
-                   (hash-table-values)
-                   (-flatten)
-                   (-uniq)
-                   (-map #'lsp-workspace-shutdown))
-              (if (equal "Default" wsname)
-                  (setq lsp-netbeans-user-dir nil)
-                (setq lsp-netbeans-user-dir wsuserdir)))))))
+      (progn
+        (lsp-treemacs--treemacs->lsp)
+        (let* ((wsname (treemacs-workspace->name (treemacs-current-workspace)))
+               (wsuserdir (f-join lsp-server-install-dir
+                                  (format "asf.apache-netbeans-java.userdir.%s" wsname))))
+          (if (not (equal lsp-netbeans-user-dir wsuserdir))
+              (progn
+                ;; shutdown servers
+                (->> (lsp-session)
+                     (lsp-session-folder->servers)
+                     (hash-table-values)
+                     (-flatten)
+                     (-uniq)
+                     (-map #'lsp-workspace-shutdown))
+                (if (equal "Default" wsname)
+                    (setq lsp-netbeans-user-dir nil)
+                  (setq lsp-netbeans-user-dir wsuserdir)))))))
+  lsp-netbeans-user-dir)
 
 (if (bound-and-true-p treemacs-switch-workspace-hook)
     (progn
       (add-hook 'treemacs-switch-workspace-hook #'lsp-netbeans--treemacs-sync)
-      (if (not (equal "Default" (treemacs-workspace->name (treemacs-current-workspace))))
-          (lsp-netbeans--treemacs-sync))))
+      (lsp-netbeans--treemacs-sync)))
 
 (provide 'lsp-netbeans)
 
