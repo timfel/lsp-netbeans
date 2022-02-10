@@ -327,7 +327,7 @@
                   (setq lsp-netbeans-user-dir wsuserdir)))))))
   lsp-netbeans-user-dir)
 
-(if (bound-and-true-p treemacs-switch-workspace-hook)
+(if (fboundp #'treemacs)
     (progn
       (add-hook 'treemacs-switch-workspace-hook #'lsp-netbeans--treemacs-sync)
       (lsp-netbeans--treemacs-sync)))
