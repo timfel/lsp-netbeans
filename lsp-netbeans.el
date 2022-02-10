@@ -286,7 +286,8 @@
 
 (defun lsp-netbeans-kill-userdir ()
   (interactive)
-  (f-delete lsp-netbeans-user-dir t))
+  (f-delete lsp-netbeans-user-dir t)
+  (message "Killed %s" lsp-netbeans-user-dir))
 
 (lsp-register-client
  (make-lsp-client
