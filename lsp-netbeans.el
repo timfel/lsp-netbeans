@@ -65,7 +65,7 @@
   :type 'string)
 
 (defvar lsp-netbeans-user-dir nil
-  "Apache Netbeans language server userdir")x
+  "Apache Netbeans language server userdir")
 
 (defcustom-lsp lsp-netbeans-javadoc-load-timeout 10
   "Load timeout for docs."
