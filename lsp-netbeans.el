@@ -306,26 +306,25 @@
                      ("window/showInputBox" #'lsp-netbeans--show-input-box))
   :download-server-fn #'lsp-netbeans--install-server))
 
-(add-hook
- 'lsp-treemacs-sync-mode-hook
- (lambda ()
-   (add-hook
-    'treemacs-switch-workspace-hook
-    (lambda ()
-      (let ((wsname (treemacs-workspace->name (treemacs-current-workspace))))
-        ;; shutdown servers
-        (->> (lsp-session)
-             (lsp-session-folder->servers)
-             (hash-table-values)
-             (-flatten)
-             (-uniq)
-             (-map #'lsp-workspace-shutdown))
+(if (bound-and-true-p treemacs-switch-workspace-hook)
+    (add-hook
+     'treemacs-switch-workspace-hook
+     (lambda ()
+       (if (bound-and-true-p lsp-treemacs-sync-mode)
+           (let ((wsname (treemacs-workspace->name (treemacs-current-workspace))))
+             ;; shutdown servers
+             (->> (lsp-session)
+                  (lsp-session-folder->servers)
+                  (hash-table-values)
+                  (-flatten)
+                  (-uniq)
+                  (-map #'lsp-workspace-shutdown))
 
-        (if (equal "Default" wsname)
-            (setq lsp-netbeans-user-dir nil)
-          (setq lsp-netbeans-user-dir
-                (f-join lsp-server-install-dir
-                        (format "asf.apache-netbeans-java.userdir.%s" wsname)))))))))
+             (if (equal "Default" wsname)
+                 (setq lsp-netbeans-user-dir nil)
+               (setq lsp-netbeans-user-dir
+                     (f-join lsp-server-install-dir
+                             (format "asf.apache-netbeans-java.userdir.%s" wsname)))))))))
 
 (provide 'lsp-netbeans)
 
