@@ -131,7 +131,7 @@
              "sh" "-c" (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
 
 (lsp-interface (netbeans:ShowQuickPickParams (:placeHolder :canPickMany :items) nil)
-               (netbeans:QuickPickItem (:label :picked :userData) nil)
+               (netbeans:QuickPickItem (:label) (:detail :description :picked :userData))
                (netbeans:ShowInputBoxParams (:prompt) (:value))
                (netbeans:Tests (:file :name :range :tests) nil)
                (netbeans:Test (:id :file :name :range) nil))
@@ -178,21 +178,22 @@
 
 (lsp-defun lsp-netbeans--show-quick-pick (_workspace (&netbeans:ShowQuickPickParams :place-holder :can-pick-many :items))
   (if-let* ((selectfunc (if can-pick-many #'completing-read-multiple #'completing-read))
-            (itemLabels (cl-map 'list
-                                (-lambda ((item &as &netbeans:QuickPickItem :label)) (format "%s" label))
-                                items))
+            (itemHt (make-hash-table :test #'equal))
+            (itemLabels (mapc (-lambda ((item &as &netbeans:QuickPickItem :label :detail? :description?))
+                                (ht-set! itemHt (format "%s %s %s" label detail? description?) label))
+                              items))
             (result (funcall-interactively
                      selectfunc
-                     (format "%s%s " place-holder (if can-pick-many " (* for all)" "")) itemLabels))
+                     (format "%s%s " place-holder (if can-pick-many " (* for all)" "")) itemHt))
             (choices (if (listp result)
                          (if (equal result '("*"))
-                             itemLabels
-                           result)
-                       (list result))))
+                             (ht-values itemHt)
+                           (seq-map (lambda (r) (ht-get itemHt r)) result))
+                       (list (ht-get itemHt result)))))
       (vconcat (seq-filter #'identity (cl-map 'list
-                                              (-lambda ((item &as &netbeans:QuickPickItem :label :picked :user-data))
+                                              (-lambda ((item &as &netbeans:QuickPickItem :label :picked? :user-data?))
                                                 (if (member label choices)
-                                                    (lsp-make-netbeans-quick-pick-item :label label :picked t :user-data user-data)
+                                                    (lsp-make-netbeans-quick-pick-item :label label :picked? t :user-data? user-data?)
                                                   nil))
                                               items)))))
 
