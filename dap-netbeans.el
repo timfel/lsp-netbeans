@@ -31,22 +31,21 @@
 (setq dap-netbeans--host-history '("localhost"))
 (setq dap-netbeans--port-history '("8000"))
 
-(defun dap-netbeans--populate-attach-args (conf)
-  (if-let* ((dap-netbeans--attach-history (list "Process" "Socket"))
-            (type (completing-read "Attach to Socket/Process? " dap-netbeans--attach-history nil t nil 'dap-netbeans--attach-history)))
-      (pcase type
-        ("Socket" (progn
-                    (dap--put-if-absent conf :id "com.sun.jdi.SocketAttach")
-                    (dap--put-if-absent conf :hostName (read-string "Enter host: " (car dap-netbeans--host-history) 'dap-netbeans--host-history))
-                    (dap--put-if-absent conf :port (read-string "Enter port: " (car dap-netbeans--port-history) 'dap-netbeans--port-history))
-                    (dap--put-if-absent conf :name (format "Attach to %s:%s" (plist-get conf :hostName) (plist-get conf :port)))))
-        ("Process" (progn
-                     (dap--put-if-absent conf :id "com.sun.jdi.ProcessAttach")
-                     (dap--put-if-absent conf :name "Attach to PID")
-                     (dap--put-if-absent conf
-                                         :processId
-                                         (lsp-request "workspace/executeCommand"
-                                                      (list :command "java.attachDebugger.pickProcess")))))))
+(defun dap-netbeans--populate-attach-args (conf type)
+  (pcase type
+    ("Socket" (progn
+                (dap--put-if-absent conf :id "com.sun.jdi.SocketAttach")
+                (dap--put-if-absent conf :hostName (read-string "Enter host: " (car dap-netbeans--host-history) 'dap-netbeans--host-history))
+                (dap--put-if-absent conf :port (read-string "Enter port: " (car dap-netbeans--port-history) 'dap-netbeans--port-history))
+                (dap--put-if-absent conf :name (format "Attach to %s:%s" (plist-get conf :hostName) (plist-get conf :port)))))
+    ("Process" (progn
+                 (dap--put-if-absent conf :id "com.sun.jdi.ProcessAttach")
+                 (dap--put-if-absent conf :name "Attach to PID")
+                 (dap--put-if-absent conf
+                                     :processId
+                                     (lsp-request "workspace/executeCommand"
+                                                  (list :command "java.attachDebugger.pickProcess"))))))
+  (plist-put conf :request "attach")
   (dap--put-if-absent conf :host "localhost")
   conf)
 
@@ -61,7 +60,17 @@
   (setq conf (plist-put conf :type "java8+"))
 
   (setq conf (pcase (plist-get conf :request)
-               ("attach" (dap-netbeans--populate-attach-args conf))
+               ("attach" (dap-netbeans--populate-attach-args
+                          conf
+                          (let* ((dap-netbeans--attach-history '("Process" "Socket"))
+                                 (type (completing-read
+                                        "Attach to Socket/Process? "
+                                        dap-netbeans--attach-history
+                                        nil t nil
+                                        'dap-netbeans--attach-history)))
+                            type)))
+               ("Socket" (dap-netbeans--populate-attach-args conf "Socket"))
+               ("Process" (dap-netbeans--populate-attach-args conf "Process"))
                ("launch" (dap-netbeans--populate-launch-args conf))))
 
   (plist-put conf :debugServer (with-current-buffer (get-buffer "*netbeans::stderr*")
