@@ -51,7 +51,7 @@
 
 (defun dap-netbeans--populate-launch-args (conf)
   (dap--put-if-absent conf :mainClass (read-string "Enter mainClass: " "Main"))
-  (dap--put-if-absent conf :methodName (read-string "Enter methodName: " "testA"))
+  ;; (dap--put-if-absent conf :methodName (read-string "Enter methodName: " "testA"))
   (dap--put-if-absent conf :host "localhost")
   (dap--put-if-absent conf :name (format "%s(%s)" (plist-get conf :host) (plist-get conf :port)))
   conf)
@@ -115,6 +115,21 @@
                                                 (format "%s//%s" (substring txt 0 -1) (substring txt -1))))
                         file))
              (methodName name))
+      (dap-debug (list :id "com.sun.jdi.Launch"
+                       :type "java8+"
+                       :request "launch"
+                       :name "Java Single Debug"
+                       :testRun :json-false
+                       :noDebug :json-false
+                       :classPaths (list "any")
+                       :mainClass mainClass
+                       :output-filter-function #'dap-netbeans--listen-for-finish
+                       :methodName methodName))))
+
+(lsp-defun dap-netbeans-debug-single ()
+  (interactive)
+  (-if-let* ((mainClass (format "file://%s" (buffer-file-name)))
+             (methodName "main"))
       (dap-debug (list :id "com.sun.jdi.Launch"
                        :type "java8+"
                        :request "launch"
