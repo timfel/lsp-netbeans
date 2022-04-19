@@ -197,9 +197,6 @@
                                                   nil))
                                               items)))))
 
-(lsp-defun lsp-netbeans--show-input-box (_workspace (&netbeans:ShowInputBoxParams :prompt :value?))
-  (read-string (format "%s: " prompt) (or value? "")))
-
 (defun lsp-netbeans--load-tests ()
   (if-let* ((project-root (lsp-find-session-folder (lsp-session) (buffer-file-name)))
             (tests (lsp-request
@@ -320,8 +317,7 @@
   :multi-root t
   :uri-handlers (lsp-ht ("sourcefor" #'lsp-netbeans--file-sourceFor))
   :request-handlers (ht
-                     ("window/showQuickPick" #'lsp-netbeans--show-quick-pick)
-                     ("window/showInputBox" #'lsp-netbeans--show-input-box))
+                     ("window/showQuickPick" #'lsp-netbeans--show-quick-pick))
   :download-server-fn #'lsp-netbeans--install-server))
 
 (defun lsp-netbeans--treemacs-sync ()
