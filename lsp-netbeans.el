@@ -290,6 +290,22 @@
   (f-delete lsp-netbeans-user-dir t)
   (message "Killed %s" lsp-netbeans-user-dir))
 
+(defun lsp-netbeans--file-sourceFor (uri)
+  (let* ((url (url-generic-parse-url (url-unhex-string uri)))
+         (path-and-query (url-path-and-query (url-generic-parse-url (url-filename url))))
+         (path (car path-and-query))
+         (query (cdr path-and-query))
+         (fully-qualified-name (url-target url)))
+    (if (string-equal "CLASS" query)
+        (let* ((class-path (split-string fully-qualified-name "[\\.\\$]"))
+               (try-path path)
+               (loc nil))
+          (dolist (item class-path loc)
+            (setq try-path (concat try-path "/" item))
+            (let ((result (concat try-path ".java")))
+              (if (file-exists-p result)
+                  (setq loc result))))))))
+
 (lsp-register-client
  (make-lsp-client
   :new-connection (lsp-tcp-connection 'lsp-netbeans-server-command)
@@ -302,6 +318,7 @@
                                  :wantsGroovySupport (lsp-json-bool nil)))
   :priority 10
   :multi-root t
+  :uri-handlers (lsp-ht ("sourcefor" #'lsp-netbeans--file-sourceFor))
   :request-handlers (ht
                      ("window/showQuickPick" #'lsp-netbeans--show-quick-pick)
                      ("window/showInputBox" #'lsp-netbeans--show-input-box))
