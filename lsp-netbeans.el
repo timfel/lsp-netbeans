@@ -288,6 +288,13 @@
   (message "Killed %s" lsp-netbeans-user-dir))
 
 (defun lsp-netbeans--file-sourceFor (uri)
+  (run-with-timer
+   1
+   nil
+   (lambda ()
+     (with-lsp-workspace (lsp-find-workspace 'netbeans nil)
+       (lsp-request "workspace/executeCommand" (list :command "java.source.for"
+                                                     :arguments (vector uri))))))
   (let* ((url (url-generic-parse-url (url-unhex-string uri)))
          (path-and-query (url-path-and-query (url-generic-parse-url (url-filename url))))
          (path (car path-and-query))
@@ -296,7 +303,7 @@
     (if (string-equal "CLASS" query)
         (let* ((class-path (split-string fully-qualified-name "[\\.\\$]"))
                (try-path path)
-               (loc nil))
+               (loc (concat "for " fully-qualified-name)))
           (dolist (item class-path loc)
             (setq try-path (concat try-path "/" item))
             (let ((result (concat try-path ".java")))
