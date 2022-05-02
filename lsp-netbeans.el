@@ -74,6 +74,28 @@
   :package-version '(lsp-mode . "6.2")
   :lsp-path "netbeans.javadoc.load.timeout")
 
+(defcustom-lsp lsp-netbeans-onSave-organizeImports (lsp-json-bool nil)
+  "Enable organize imports action on a document save"
+  :type '(choice (const :json-false)
+                 (const t))
+  :group 'lsp-netbeans
+  :package-version '(lsp-mode . "6.2")
+  :lsp-path "netbeans.java.onSave.organizeImports")
+
+(defcustom-lsp lsp-netbeans-import-groups '("java" "javax" "org" "com" "")
+  "Groups of import statements (specified by their package prefixes) and their sorting order. Import statements within a group are ordered alphabetically"
+  :type 'vector
+  :group 'lsp-netbeans
+  :package-version '(lsp-mode . "6.2")
+  :lsp-path "netbeans.java.imports.groups")
+
+(defcustom-lsp lsp-netbeans-groovySupport-enabled nil
+  "Enables experimental Groovy and Spock support in Language Server"
+  :type 'boolean
+  :group 'lsp-netbeans
+  :package-version '(lsp-mode . "6.2")
+  :lsp-path "netbeans.groovySupport.enabled")
+
 (defun lsp-netbeans-server-command (main-port)
   (let ((cmd (list (f-join lsp-netbeans-install-dir "run.sh"))))
     (if (not (string-empty-p lsp-netbeans-jdk))
@@ -319,6 +341,7 @@
                                 (list
                                  :testResultsSupport (lsp-json-bool nil)
                                  :statusBarMessageSupport (lsp-json-bool nil)
+                                 :showHtmlPageSupport (lsp-json-bool nil)
                                  :wantsGroovySupport (lsp-json-bool nil)))
   :priority 10
   :multi-root t
