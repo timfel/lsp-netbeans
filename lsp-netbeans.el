@@ -75,7 +75,7 @@
   :lsp-path "netbeans.javadoc.load.timeout")
 
 (defun lsp-netbeans-server-command (main-port)
-  (let ((cmd (list (f-join lsp-netbeans-install-dir "run.sh"))))
+  (let ((cmd (list (f-join lsp-netbeans-install-dir "run.cmd"))))
     (if (not (string-empty-p lsp-netbeans-jdk))
         (progn
           (add-to-list 'cmd "--jdkhome" t)
@@ -118,12 +118,16 @@
                  (lsp-unzip
                   vsix
                   lsp-netbeans-install-dir))
-               (let ((run-script-path (f-join lsp-netbeans-install-dir "run.sh")))
+               (let ((run-script-path (f-join lsp-netbeans-install-dir "run.cmd")))
                  (with-temp-file run-script-path
-                   (insert "#!/bin/bash
-                      cd `dirname $0`
-                      cd extension
-                      node out/nbcode.js $@ >&2"))
+                   (insert (if (eq system-type 'windows-nt) 
+                               "cd %~dp0
+                               cd extension
+                               node out/nbcode.js %* 1>&2"
+                            "#!/bin/bash
+                            cd `dirname $0`
+                            cd extension
+                            node out/nbcode.js $@ >&2")))
                  (shell-command (concat "chmod u+x " run-script-path)))
                (message "Done downloading Netbeans LSP server")
                (funcall callback))
