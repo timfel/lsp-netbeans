@@ -128,11 +128,12 @@
                             cd `dirname $0`
                             cd extension
                             node out/nbcode.js $@ >&2")))
-                 (shell-command (concat "chmod u+x " run-script-path)))
+                 (if (not (eq system-type 'windows-nt))
+                   (shell-command (concat "chmod u+x " run-script-path))))
                (message "Done downloading Netbeans LSP server")
                (funcall callback))
              error-callback
-             "sh" "-c" (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
+             (if (eq system-type 'windows-nt) "cmd" "sh") (if (eq system-type 'windows-nt) "/C" "-c") (format "curl -L -C - --output %s %s" download-path lsp-netbeans-download-url)))))))
 
 (lsp-interface (netbeans:ShowQuickPickParams (:placeHolder :canPickMany :items) nil)
                (netbeans:QuickPickItem (:label) (:detail :description :picked :userData))
